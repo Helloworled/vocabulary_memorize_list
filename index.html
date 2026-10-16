@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vocabulary Memorize List</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
+  #textbox {
+    width: 100%;
+    height: 150px;
+    margin-bottom: 10px;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  button {
+    margin-bottom: 20px;
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th, td {
+    border: 1px solid #ccc;
+    padding: 6px;
+    text-align: left;
+  }
+  th {
+    background-color: #f0f0f0;
+  }
+</style>
+</head>
+<body>
+  <button id="copyBtn">Copy to Clipboard</button>
+  <textarea id="textbox" placeholder="Strings will appear here..."></textarea>
+  <div id="tableContainer"></div>
+
+<script>
+const CSV_URL = './data.csv';
+
+let numbers = [];
+
+function getUTCTPlus8Date() {
+  const date = new Date();
+  const utcPlus8 = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+  const y = utcPlus8.getUTCFullYear();
+  const m = String(utcPlus8.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(utcPlus8.getUTCDate()).padStart(2, '0');
+  return `${y}/${m}/${d}`;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  return lines.map(line => line.split(','));
+}
+
+function loadCSV() {
+  fetch(CSV_URL)
+    .then(response => response.text())
+    .then(text => {
+      const data = parseCSV(text);
+      processCSV(data);
+    })
+    .catch(err => {
+      console.error('Failed to load CSV:', err);
+    });
+}
+
+function processCSV(data) {
+  if (data.length < 2) return;
+
+  const header = data[0];
+  const today = getUTCTPlus8Date();
+
+  // Find column indices
+  const colA = 0;
+  const colB = 1;
+  const colC = 2;
+  const colG = 6;
+  const colH = 7;
+  const colJ = 9;
+  const colK = 10;
+  const colL = 11;
+  const colM = 12;
+  const colN = 13;
+
+  numbers = [];
+
+  // First pass: find rows where column B matches today
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    if (row[colB] && row[colB].trim() === today) {
+      if (row[colA]) {
+        numbers.push(parseInt(row[colA].trim(), 10));
+      }
+    }
+  }
+
+  // Second pass: collect numbers from columns G, H, J, K, L, M, N
+  const targetCols = [colG, colH, colJ, colK, colL, colM, colN];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    for (let c of targetCols) {
+      if (row[c] && row[c].trim() !== '') {
+        const val = parseInt(row[c].trim(), 10);
+        if (!isNaN(val) && val > 0) {
+          numbers.push(val);
+        }
+      }
+    }
+  }
+
+  // Query column C for all rows where column A matches any number in the array
+  const strings = [];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const aVal = parseInt(row[colA]?.trim(), 10);
+    if (!isNaN(aVal) && numbers.includes(aVal)) {
+      if (row[colC]) {
+        strings.push(row[colC].trim());
+      }
+    }
+  }
+
+  const textbox = document.getElementById('textbox');
+  textbox.value = strings.join('\n');
+
+  renderTable(data);
+}
+
+function renderTable(data) {
+  const container = document.getElementById('tableContainer');
+  container.innerHTML = '';
+
+  if (data.length === 0) return;
+
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+
+  data[0].forEach(cell => {
+    const th = document.createElement('th');
+    th.textContent = cell.trim();
+    headerRow.appendChild(th);
+  });
+
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell.trim();
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const textbox = document.getElementById('textbox');
+  textbox.select();
+  document.execCommand('copy');
+});
+
+loadCSV();
+</script>
+</body>
+</html>
