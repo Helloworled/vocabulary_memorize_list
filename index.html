@@ -15,6 +15,7 @@
     margin-bottom: 10px;
     padding: 8px;
     box-sizing: border-box;
+    white-space: pre-wrap;
   }
   button {
     margin-bottom: 20px;
@@ -41,9 +42,7 @@
   <div id="tableContainer"></div>
 
 <script>
-const CSV_URL = './data.csv';
-
-let numbers = [];
+const CSV_URL = 'data.csv';
 
 function getUTCTPlus8Date() {
   const date = new Date();
@@ -56,7 +55,7 @@ function getUTCTPlus8Date() {
 
 function parseCSV(text) {
   const lines = text.trim().split('\n');
-  return lines.map(line => line.split(','));
+  return lines.map(line => line.split(',').map(s => s.trim()));
 }
 
 function loadCSV() {
@@ -72,98 +71,87 @@ function loadCSV() {
 }
 
 function processCSV(data) {
-  if (data.length < 2) return;
+  if (data.length < 3) return;
 
-  const header = data[0];
   const today = getUTCTPlus8Date();
-
-  // Find column indices
   const colA = 0;
   const colB = 1;
   const colC = 2;
-  const colG = 6;
-  const colH = 7;
-  const colJ = 9;
-  const colK = 10;
-  const colL = 11;
-  const colM = 12;
-  const colN = 13;
 
-  numbers = [];
-
-  // First pass: find rows where column B matches today
+  // Find today's row: column B matches today
+  let todayRow = -1;
   for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    if (row[colB] && row[colB].trim() === today) {
-      if (row[colA]) {
-        numbers.push(parseInt(row[colA].trim(), 10));
-      }
-    }
-  }
-
-  // Second pass: collect numbers from columns G, H, J, K, L, M, N
-  const targetCols = [colG, colH, colJ, colK, colL, colM, colN];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    for (let c of targetCols) {
-      if (row[c] && row[c].trim() !== '') {
-        const val = parseInt(row[c].trim(), 10);
-        if (!isNaN(val) && val > 0) {
-          numbers.push(val);
-        }
-      }
-    }
-  }
-
-  // Query column C for all rows where column A matches any number in the array
-  const strings = [];
-  for (let i = 1; i < data.length; i++) {
-    const row = data[i];
-    const aVal = parseInt(row[colA]?.trim(), 10);
-    if (!isNaN(aVal) && numbers.includes(aVal)) {
-      if (row[colC]) {
-        strings.push(row[colC].trim());
-      }
+    if (data[i][colB] === today) {
+      todayRow = i;
+      break;
     }
   }
 
   const textbox = document.getElementById('textbox');
-  textbox.value = strings.join('\n');
+  if (todayRow === -1) {
+    textbox.value = `未找到今天（${today}）的学习记录。`;
+    renderTable(data);
+    return;
+  }
 
+  let outputText = "【SAT单词进度】\n";
+  outputText += today + "\n";
+  outputText += "背：" + data[todayRow][colC] + "\n";
+  outputText += "------------------------\n";
+  outputText += "复习：\n";
+
+  // Columns G(6) through N(13)
+  for (let col = 6; col <= 13; col++) {
+    const reviewVal = data[todayRow][col];
+    const colName = data[1][col]; // header row is index 1 (second row)
+
+    if (reviewVal !== '' && !isNaN(reviewVal) && Number(reviewVal) > 0) {
+      const targetNum = Number(reviewVal);
+      // Match against column A
+      let matchRow = -1;
+      for (let i = 1; i < data.length; i++) {
+        if (Number(data[i][colA]) === targetNum) {
+          matchRow = i;
+          break;
+        }
+      }
+      if (matchRow !== -1) {
+        const reviewContent = data[matchRow][colC];
+        outputText += "[" + colName + "] " + reviewContent + "\n";
+      }
+    }
+  }
+
+  textbox.value = outputText;
   renderTable(data);
 }
 
 function renderTable(data) {
   const container = document.getElementById('tableContainer');
   container.innerHTML = '';
-
   if (data.length === 0) return;
 
   const table = document.createElement('table');
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
-
   data[0].forEach(cell => {
     const th = document.createElement('th');
-    th.textContent = cell.trim();
+    th.textContent = cell;
     headerRow.appendChild(th);
   });
-
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
   for (let i = 1; i < data.length; i++) {
-    const row = data[i];
     const tr = document.createElement('tr');
-    row.forEach(cell => {
+    data[i].forEach(cell => {
       const td = document.createElement('td');
-      td.textContent = cell.trim();
+      td.textContent = cell;
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   }
-
   table.appendChild(tbody);
   container.appendChild(table);
 }
