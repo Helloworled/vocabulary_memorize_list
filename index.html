@@ -22,6 +22,10 @@
     padding: 8px 16px;
     cursor: pointer;
   }
+  #datePicker {
+    margin-bottom: 20px;
+    padding: 6px 10px;
+  }
   table {
     border-collapse: collapse;
     width: 100%;
@@ -37,19 +41,22 @@
 </style>
 </head>
 <body>
-  <button id="copyBtn">Copy to Clipboard</button>
+  <button id="copyBtn" autofocus>Copy to Clipboard</button>
+  <input type="date" id="datePicker">
   <textarea id="textbox" placeholder="Strings will appear here..."></textarea>
   <div id="tableContainer"></div>
 
 <script>
 const CSV_URL = 'data.csv';
 
+let csvData = null;
+
 function getUTCTPlus8Date() {
   const date = new Date();
   const utcPlus8 = new Date(date.getTime() + (8 * 60 * 60 * 1000));
   const y = utcPlus8.getUTCFullYear();
-  const m = String(utcPlus8.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(utcPlus8.getUTCDate()).padStart(2, '0');
+  const m = utcPlus8.getUTCMonth() + 1;
+  const d = utcPlus8.getUTCDate();
   return `${y}/${m}/${d}`;
 }
 
@@ -62,18 +69,18 @@ function loadCSV() {
   fetch(CSV_URL)
     .then(response => response.text())
     .then(text => {
-      const data = parseCSV(text);
-      processCSV(data);
+      csvData = parseCSV(text);
+      processCSV(csvData);
     })
     .catch(err => {
       console.error('Failed to load CSV:', err);
     });
 }
 
-function processCSV(data) {
+function processCSV(data, selectedDate) {
   if (data.length < 3) return;
 
-  const today = getUTCTPlus8Date();
+  const today = selectedDate || getUTCTPlus8Date();
   const colA = 0;
   const colB = 1;
   const colC = 2;
@@ -100,8 +107,8 @@ function processCSV(data) {
   outputText += "------------------------\n";
   outputText += "复习：\n";
 
-  // Columns G(6) through N(13)
-  for (let col = 6; col <= 13; col++) {
+  // Columns G(6) through P(15)
+  for (let col = 6; col <= 15; col++) {
     const reviewVal = data[todayRow][col];
     const colName = data[1][col]; // header row is index 1 (second row)
 
@@ -162,7 +169,25 @@ document.getElementById('copyBtn').addEventListener('click', () => {
   document.execCommand('copy');
 });
 
+const datePicker = document.getElementById('datePicker');
+
+function setDefaultDatePicker() {
+  const now = new Date();
+  const utcPlus8 = new Date(now.getTime() + (8 * 60 * 60 * 1000));
+  const y = utcPlus8.getUTCFullYear();
+  const m = String(utcPlus8.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(utcPlus8.getUTCDate()).padStart(2, '0');
+  datePicker.value = `${y}-${m}-${d}`;
+}
+
+datePicker.addEventListener('change', () => {
+  const selected = new Date(datePicker.value);
+  const selectedDateStr = `${selected.getFullYear()}/${selected.getMonth() + 1}/${selected.getDate()}`;
+  if (csvData) processCSV(csvData, selectedDateStr);
+});
+
 loadCSV();
+setDefaultDatePicker();
 </script>
 </body>
 </html>
